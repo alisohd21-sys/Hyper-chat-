@@ -69,7 +69,6 @@
 </head>
 <body>
 
-    <!-- شاشة تسجيل الدخول / إنشاء حساب -->
     <div id="auth-screen" class="auth-container active">
         <h2 id="auth-title">تسجيل الدخول</h2>
         <form id="auth-form">
@@ -87,24 +86,22 @@
         <div class="toggle-auth" id="toggle-auth-view">ليس لديك حساب؟ <span>أنشئ حساباً الآن</span></div>
     </div>
 
-    <!-- شاشة استكمال بيانات الحساب الجديد (يوزر نيم واسم شخصي) -->
     <div id="profile-setup-screen" class="auth-container">
         <h2>إعداد الملف الشخصي</h2>
         <p style="color: var(--text-muted); font-size:14px; margin-bottom:15px;">فضلاً اختر اسم مستخدم واسمك الشخصي للمتابعة</p>
         <form id="profile-form">
             <div class="input-group">
                 <label>اسم المستخدم (Username)</label>
-                <input type="text" id="setup-username" required placeholder="مثال: ali_99">
+                <input type="text" id="setup-username" required placeholder="مثال: user_10">
             </div>
             <div class="input-group">
                 <label>الاسم الشخصي (Full Name)</label>
-                <input type="text" id="setup-fullname" required placeholder="مثال: علي محمد">
+                <input type="text" id="setup-fullname" required placeholder="مثال: محمد خالد">
             </div>
             <button type="submit" class="btn btn-primary">حفظ ودخول الشات</button>
         </form>
     </div>
 
-    <!-- واجهة التطبيق الرئيسية (الشات) -->
     <div id="app-interface">
         <div class="chat-container">
             <div class="sidebar">
@@ -112,8 +109,8 @@
                     <div class="user-profile">
                         <div class="user-avatar" id="my-avatar">U</div>
                         <div style="display:flex; flex-direction:column;">
-                            <span id="my-name" style="font-weight:bold; font-size:14px;">الاسم الشخصي</span>
-                            <span id="my-username" style="color:var(--text-muted); font-size:12px;">@username</span>
+                            <span id="my-name" style="font-weight:bold; font-size:14px;">...</span>
+                            <span id="my-username" style="color:var(--text-muted); font-size:12px;">...</span>
                         </div>
                     </div>
                     <button class="logout-btn" id="btn-logout" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></button>
@@ -123,7 +120,7 @@
                         <div class="user-avatar" style="background-color: var(--accent-color);"><i class="fas fa-users"></i></div>
                         <div>
                             <div style="font-weight: bold;">المحادثة العامة</div>
-                            <div style="font-size: 12px; color: var(--text-muted);">تواصل مع الجميع فوراً...</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">تواصل فوراً مع الجميع...</div>
                         </div>
                     </div>
                 </div>
@@ -133,8 +130,8 @@
                 <div class="chat-header">
                     <div class="user-avatar" style="background-color: var(--accent-color);"><i class="fas fa-users"></i></div>
                     <div>
-                        <div style="font-weight: bold;" id="chat-room-title">المحادثة العامة للمشروع</div>
-                        <div style="font-size: 12px; color: var(--text-muted);">متصل الآن</div>
+                        <div style="font-weight: bold;">المحادثة العامة للمشروع</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">نشط الآن</div>
                     </div>
                 </div>
                 
@@ -151,9 +148,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getDatabase, ref, set, get, child, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, get, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // إعدادات الـ Firebase الثابتة الخاصة بك
         const firebaseConfig = {
             apiKey: "AIzaSyDvj1-TrBGsbtKEVbKWWtO_h7Fyp5CtH_M",
             authDomain: "hyper-info12.firebaseapp.com",
@@ -194,22 +190,22 @@
             }
         });
 
-        // مراقب الحالة الذكي لمنع تداخل عمليات التحقق والتسجيل
-        onAuthStateChanged(auth, async (user) => {
+        // تم تبسيط وتأمين دالة الفحص لمنع التعليق
+        onAuthStateChanged(auth, (user) => {
             if (user) {
-                const dbRef = ref(db);
-                try {
-                    const snapshot = await get(child(dbRef, `users/${user.uid}`));
+                const userRef = ref(db, 'users/' + user.uid);
+                get(userRef).then((snapshot) => {
                     if (snapshot.exists()) {
                         currentUserData = snapshot.val();
                         launchChatApp();
                     } else {
-                        // الحساب جديد تماماً ولا يملك يوزر نيم بعد
                         showScreen(profileScreen);
                     }
-                } catch (error) {
-                    console.error("خطأ في قراءة البيانات:", error);
-                }
+                }).catch((error) => {
+                    console.error("خطأ قاعدة البيانات:", error);
+                    // في حال رفض السيرفر، نفتحه احتياطياً لملء البيانات
+                    showScreen(profileScreen);
+                });
             } else {
                 showScreen(authScreen);
                 appInterface.style.display = 'none';
@@ -222,20 +218,14 @@
             const password = document.getElementById('auth-password').value;
 
             if (isSignUpView) {
-                createUserWithEmailAndPassword(auth, email, password)
-                    .then(() => {
-                        // سيتم تحويله تلقائياً لشاشة إكمال البيانات بواسطة مراقب الحالة فوق
-                    })
-                    .catch(err => alert("خطأ في إنشاء الحساب: " + err.message));
+                createUserWithEmailAndPassword(auth, email, password).catch(err => alert(err.message));
             } else {
-                signInWithEmailAndPassword(auth, email, password)
-                    .catch(err => alert("خطأ في الدخول: " + err.message));
+                signInWithEmailAndPassword(auth, email, password).catch(err => alert(err.message));
             }
         });
 
         document.getElementById('btn-google-login').addEventListener('click', () => {
-            signInWithPopup(auth, googleProvider)
-                .catch(err => alert("فشل الدخول بجوجل: " + err.message));
+            signInWithPopup(auth, googleProvider).catch(err => alert(err.message));
         });
 
         document.getElementById('profile-form').addEventListener('submit', async (e) => {
@@ -249,22 +239,17 @@
                     uid: user.uid,
                     username: username,
                     fullname: fullname,
-                    email: user.email || "Google Account"
+                    email: user.email || "Google User"
                 };
                 
-                try {
-                    await set(ref(db, 'users/' + user.uid), userData);
+                set(ref(db, 'users/' + user.uid), userData).then(() => {
                     currentUserData = userData;
                     launchChatApp();
-                } catch (error) {
-                    alert("خطأ أثناء حفظ البيانات: " + error.message);
-                }
+                }).catch(err => alert("خطأ حفظ البيانات: " + err.message));
             }
         });
 
         function launchChatApp() {
-            authScreen.classList.remove('active');
-            profileScreen.classList.remove('active');
             authScreen.style.display = 'none';
             profileScreen.style.display = 'none';
             appInterface.style.display = 'block';
@@ -312,7 +297,6 @@
         function displayMessage(data) {
             const isMe = data.senderUid === currentUserData.uid;
             const messageElement = document.createElement('div');
-            
             messageElement.classList.add('message', isMe ? 'sent' : 'received');
             const timeString = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
@@ -321,34 +305,22 @@
                 <span>${escapeHtml(data.messageText)}</span>
                 <span class="time">${timeString}</span>
             `;
-
             messagesContainer.appendChild(messageElement);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
         document.getElementById('btn-logout').addEventListener('click', () => {
-            signOut(auth).then(() => {
-                location.reload();
-            });
+            signOut(auth).then(() => { location.reload(); });
         });
 
         function showScreen(screenToShow) {
-            authScreen.classList.remove('active');
-            profileScreen.classList.remove('active');
             authScreen.style.display = 'none';
             profileScreen.style.display = 'none';
-            
-            screenToShow.classList.add('active');
             screenToShow.style.display = 'block';
         }
 
         function escapeHtml(text) {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
+            return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
     </script>
 </body>
