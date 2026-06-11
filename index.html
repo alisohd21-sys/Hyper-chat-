@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شات هايبير | Hyper Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-body: #0b141a;
+            --bg-chat: #0b141a;
+            --bg-sidebar: #111b21;
+            --bg-header: #202c33;
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --accent-color: #00a884; /* لون واتساب الأخضر */
+            --msg-out: #005c4b;
+            --msg-in: #202c33;
+            --auth-card: #222e35;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg-body); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        
+        /* شاشات المصادقة */
+        .auth-container { background: var(--auth-card); padding: 30px; border-radius: 12px; width: 100%; max-width: 400px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-align: center; }
+        .auth-container h2 { margin-bottom: 20px; color: var(--accent-color); }
+        .input-group { margin-bottom: 15px; text-align: right; }
+        .input-group label { display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 14px; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #374248; background: #2a3942; border-radius: 8px; color: #fff; outline: none; }
+        .input-group input:focus { border-color: var(--accent-color); }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-primary { background: var(--accent-color); color: white; }
+        .btn-primary:hover { background: #008f72; }
+        .btn-google { background: #ea4335; color: white; margin-top: 10px; }
+        .btn-google:hover { background: #d33426; }
+        .toggle-auth { margin-top: 15px; color: var(--text-muted); font-size: 14px; cursor: pointer; }
+        .toggle-auth span { color: var(--accent-color); text-decoration: underline; }
+
+        /* هيكل التطبيق الرئيسي بعد الدخول */
+        #app-interface { display: none; width: 100%; height: 100vh; }
+        .chat-container { display: flex; width: 100%; height: 100%; }
+        
+        /* القائمة الجانبية (مثل ماسنجر/واتساب) */
+        .sidebar { width: 30%; background: var(--bg-sidebar); border-left: 1px solid #222e35; display: flex; flex-direction: column; }
+        .sidebar-header { background: var(--bg-header); padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; background: #4f5e64; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .logout-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 18px; }
+        .logout-btn:hover { color: #ea4335; }
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item { padding: 15px; display: flex; align-items: center; gap: 15px; border-bottom: 1px solid #222e35; cursor: pointer; background: #202c3330; }
+        
+        /* منطقة المحادثة */
+        .main-chat { flex: 1; display: flex; flex-direction: column; background: var(--bg-chat); background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); opacity: 0.95; }
+        .chat-header { background: var(--bg-header); padding: 15px; display: flex; align-items: center; gap: 15px; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* فقاعات الرسائل */
+        .message { max-width: 65%; padding: 8px 14px; border-radius: 8px; position: relative; word-wrap: break-word; font-size: 15px; display: flex; flex-direction: column; }
+        .message .meta-info { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: bold; }
+        .message .time { font-size: 10px; text-align: left; margin-top: 4px; color: rgba(255,255,255,0.5); }
+        .message.sent { background: var(--msg-out); align-self: flex-start; border-top-right-radius: 0; }
+        .message.received { background: var(--msg-in); align-self: flex-end; border-top-left-radius: 0; }
+
+        /* صندوق الإدخال السفلي */
+        .chat-input-area { background: var(--bg-header); padding: 10px 20px; display: flex; align-items: center; gap: 10px; }
+        .chat-input-area input { flex: 1; padding: 12px; border: none; background: #2a3942; border-radius: 8px; color: white; outline: none; }
+        .send-btn { background: none; border: none; color: var(--accent-color); font-size: 22px; cursor: pointer; transition: 0.2s; }
+        .send-btn:hover { transform: scale(1.1); }
+
+        /* شاشات الإخفاء والتحكم */
+        .screen { display: none; }
+        .screen.active { display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-screen" class="auth-container screen active">
+        <h2 id="auth-title">تسجيل الدخول</h2>
+        <form id="auth-form">
+            <div class="input-group">
+                <label>البريد الإلكتروني</label>
+                <input type="email" id="auth-email" required placeholder="example@mail.com">
+            </div>
+            <div class="input-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="auth-password" required placeholder="******">
+            </div>
+            <button type="submit" id="btn-submit-auth" class="btn btn-primary">دخول</button>
+        </form>
+        <button id="btn-google-login" class="btn btn-google"><i class="fab fa-google"></i> الدخول بواسطة جوجل</button>
+        <div class="toggle-auth" id="toggle-auth-view">ليس لديك حساب؟ <span>أنشئ حساباً الآن</span></div>
+    </div>
+
+    <div id="profile-setup-screen" class="auth-container screen">
+        <h2>إعداد الملف الشخصي</h2>
+        <p style="color: var(--text-muted); font-size:14px; margin-bottom:15px;">فضلاً اختر اسم مستخدم واسمك الشخصي للمتابعة</p>
+        <form id="profile-form">
+            <div class="input-group">
+                <label>اسم المستخدم (Username)</label>
+                <input type="text" id="setup-username" required placeholder="مثال: rows_99">
+            </div>
+            <div class="input-group">
+                <label>الاسم الشخصي (Full Name)</label>
+                <input type="text" id="setup-fullname" required placeholder="مثال: أحمد محمد">
+            </div>
+            <button type="submit" class="btn btn-primary">حفظ ودخول الشات</button>
+        </form>
+    </div>
+
+    <div id="app-interface">
+        <div class="chat-container">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="user-profile">
+                        <div class="user-avatar" id="my-avatar">U</div>
+                        <div style="display:flex; flex-direction:column;">
+                            <span id="my-name" style="font-weight:bold; font-size:14px;">الاسم الشخصي</span>
+                            <span id="my-username" style="color:var(--text-muted); font-size:12px;">@username</span>
+                        </div>
+                    </div>
+                    <button class="logout-btn" id="btn-logout" title="تسجيل الخروج"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+                <div class="chat-list">
+                    <div class="chat-item">
+                        <div class="user-avatar" style="background-color: var(--accent-color);"><i class="fas fa-users"></i></div>
+                        <div>
+                            <div style="font-weight: bold;">المحادثة العامة</div>
+                            <div style="font-size: 12px; color: var(--text-muted);">تواصل مع الجميع فوراً...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-chat">
+                <div class="chat-header">
+                    <div class="user-avatar" style="background-color: var(--accent-color);"><i class="fas fa-users"></i></div>
+                    <div>
+                        <div style="font-weight: bold;" id="chat-room-title">المحادثة العامة للمشروع</div>
+                        <div style="font-size: 12px; color: var(--text-muted);">متصل الآن</div>
+                    </div>
+                </div>
+                
+                <div class="chat-messages" id="chat-messages-container">
+                    </div>
+
+                <form id="chat-input-form" class="chat-input-area">
+                    <input type="text" id="message-input" autocomplete="off" placeholder="اكتب رسالتك هنا...">
+                    <button type="submit" class="send-btn"><i class="fas fa-paper-plane"></i></button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // استيراد حزم Firebase المطلوبة للنسخة الحديثة v10+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, set, get, child, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // إعدادات الـ Firebase الخاصة بك
+        const firebaseConfig = {
+            apiKey: "AIzaSyDvj1-TrBGsbtKEVbKWWtO_h7Fyp5CtH_M",
+            authDomain: "hyper-info12.firebaseapp.com",
+            projectId: "hyper-info12",
+            storageBucket: "hyper-info12.firebasestorage.app",
+            messagingSenderId: "125025857948",
+            appId: "1:125025857948:web:35dd22eb63020e9b5a5859",
+            measurementId: "G-T7991S4JHM"
+        };
+
+        // تهيئة Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const googleProvider = new GoogleAuthProvider();
+
+        // متغيرات حالة الواجهة وحفظ بيانات المستخدم الحالي في الكود
+        let currentUserData = null;
+        let isSignUpView = false; 
+
+        // عناصر واجهة المستخدم DOM
+        const authScreen = document.getElementById('auth-screen');
+        const profileScreen = document.getElementById('profile-setup-screen');
+        const appInterface = document.getElementById('app-interface');
+        const authForm = document.getElementById('auth-form');
+        const authTitle = document.getElementById('auth-title');
+        const btnSubmitAuth = document.getElementById('btn-submit-auth');
+        const toggleAuthView = document.getElementById('toggle-auth-view');
+        const messagesContainer = document.getElementById('chat-messages-container');
+
+        // التبديل بين واجهة "تسجيل الدخول" و "إنشاء حساب"
+        toggleAuthView.addEventListener('click', () => {
+            isSignUpView = !isSignUpView;
+            if(isSignUpView) {
+                authTitle.innerText = "إنشاء حساب جديد";
+                btnSubmitAuth.innerText = "تسجيل حساب الجديد";
+                toggleAuthView.innerHTML = "لديك حساب بالفعل؟ <span>سجل دخولك</span>";
+            } else {
+                authTitle.innerText = "تسجيل الدخول";
+                btnSubmitAuth.innerText = "دخول";
+                toggleAuthView.innerHTML = "ليس لديك حساب؟ <span>أنشئ حساباً الآن</span>";
+            }
+        });
+
+        // مراقبة حالة المستخدم (هل سجل دخوله أم لا؟)
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                // فحص هل بيانات اليوزر نيم محفوظة مسبقاً في قاعدة البيانات أم لا
+                const dbRef = ref(db);
+                try {
+                    const snapshot = await get(child(dbRef, `users/${user.uid}`));
+                    if (snapshot.exists()) {
+                        // المستخدم مسجل مسبقاً ولديه يوزر نيم
+                        currentUserData = snapshot.val();
+                        launchChatApp();
+                    } else {
+                        // مستخدم جديد (سواء بجوجل أو إيميل) يحتاج لإدخال اليوزر نيم أولاً
+                        showScreen(profileScreen);
+                    }
+                } catch (error) {
+                    console.error("حدث خطأ أثناء جلب البيانات:", error);
+                }
+            } else {
+                // لا يوجد مستخدم نشط، إظهار شاشة الدخول
+                showScreen(authScreen);
+                appInterface.style.display = 'none';
+            }
+        });
+
+        // معالجة تسجيل الدخول / الإنشاء عبر الإيميل والباسورد
+        authForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+
+            if (isSignUpView) {
+                // إنشاء حساب
+                createUserWithEmailAndPassword(auth, email, password)
+                    .catch(err => alert("خطأ في إنشاء الحساب: " + err.message));
+            } else {
+                // تسجيل دخول
+                signInWithEmailAndPassword(auth, email, password)
+                    .catch(err => alert("خطأ في الدخول: " + err.message));
+            }
+        });
+
+        // تسجيل الدخول عن طريق Google
+        document.getElementById('btn-google-login').addEventListener('click', () => {
+            signInWithPopup(auth, googleProvider).catch(err => alert("فشل الدخول بجوجل: " + err.message));
+        });
+
+        // معالجة فورمة حفظ بيانات الشخصية (اليوزر نيم والاسم) للحساب الجديد
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            const username = document.getElementById('setup-username').value.trim().toLowerCase();
+            const fullname = document.getElementById('setup-fullname').value.trim();
+
+            if(user) {
+                const userData = {
+                    uid: user.uid,
+                    username: username,
+                    fullname: fullname,
+                    email: user.email
+                };
+                // حفظ البيانات في Realtime Database تحت فرع users
+                await set(ref(db, 'users/' + user.uid), userData);
+                currentUserData = userData;
+                launchChatApp();
+            }
+        });
+
+        // تشغيل تطبيق الشات بعد التحقق الكامل
+        function launchChatApp() {
+            authScreen.style.display = 'none';
+            profileScreen.style.display = 'none';
+            appInterface.style.display = 'block';
+
+            // تحديث بيانات الترويسة الشخصية في القائمة الجانبية
+            document.getElementById('my-name').innerText = currentUserData.fullname;
+            document.getElementById('my-username').innerText = "@" + currentUserData.username;
+            document.getElementById('my-avatar').innerText = currentUserData.fullname.charAt(0).toUpperCase();
+
+            // البدء في الاستماع للرسائل الفورية (مرة واحدة فقط لعدم التكرار)
+            listenToMessages();
+        }
+
+        // إرسال رسالة جديدة لشات فايبربيس
+        document.getElementById('chat-input-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const msgInput = document.getElementById('message-input');
+            const text = msgInput.value.trim();
+
+            if(text !== "" && currentUserData) {
+                const messagesRef = ref(db, 'messages');
+                const newMsgRef = push(messagesRef);
+                set(newMsgRef, {
+                    senderUid: currentUserData.uid,
+                    senderName: currentUserData.fullname,
+                    senderUsername: currentUserData.username,
+                    messageText: text,
+                    timestamp: Date.now()
+                });
+                msgInput.value = ""; // تفريغ الإدخال
+            }
+        });
+
+        // الاستماع الفوري ومزامنة الرسائل الحية
+        let isListening = false;
+        function listenToMessages() {
+            if (isListening) return;
+            isListening = true;
+            
+            messagesContainer.innerHTML = ""; // تنظيف الشاشة أولاً
+            const messagesRef = ref(db, 'messages');
+            
+            onChildAdded(messagesRef, (snapshot) => {
+                const data = snapshot.val();
+                displayMessage(data);
+            });
+        }
+
+        // عرض الفقاعة داخل صندوق الشات بشكل منسق حسب المرسل
+        function displayMessage(data) {
+            const isMe = data.senderUid === currentUserData.uid;
+            const messageElement = document.createElement('div');
+            
+            // إضافة كلاس sent إذا كنت أنا المرسل، و received إذا كان شخص آخر (واتساب ستايل)
+            messageElement.classList.add('message', isMe ? 'sent' : 'received');
+
+            // تحويل الوقت لصيغة مقروءة ساعات ودقائق
+            const timeString = new Date(data.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            messageElement.innerHTML = `
+                <span class="meta-info">${isMe ? 'أنت' : data.senderName + ' (@' + data.senderUsername + ')'}</span>
+                <span>${escapeHtml(data.messageText)}</span>
+                <span class="time">${timeString}</span>
+            `;
+
+            messagesContainer.appendChild(messageElement);
+            // سحب الشات تلقائياً لأسفل عند وصول رسالة جديدة
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // تسجيل الخروج
+        document.getElementById('btn-logout').addEventListener('click', () => {
+            signOut(auth).then(() => {
+                location.reload(); // إعادة تحميل الصفحة لتنظيف الحالة المعلقة
+            });
+        });
+
+        // دالة مساعدة للتنقل الأنيق بين شاشات الدخول
+        function showScreen(screenToShow) {
+            authScreen.style.display = 'none';
+            profileScreen.style.display = 'none';
+            screenToShow.style.display = 'block';
+        }
+
+        // دالة حماية لمنع حقن أكواد الخبيثة بالأكواد المرسلة بالشات (XSS Protection)
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
